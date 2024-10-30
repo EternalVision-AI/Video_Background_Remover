@@ -1,0 +1,6 @@
+Pillow 
+rembg 
+opencv-python 
+PyMatting
+streamlit
+moviepy
