@@ -2,5 +2,5 @@ Pillow
 rembg 
 opencv-python 
 PyMatting
-streamlit
+pydub
 moviepy

@@ -17,7 +17,7 @@ ctk.set_default_color_theme("dark-blue")  # Dark blue theme, but you can customi
 class VideoBackgroundRemoverApp:
     def __init__(self, root):
         self.root = root
-        self.root.title("Video Background Remover")
+        self.root.title("Backova")
         self.root.geometry("1240x600")
 
         # Initialize the BackgroundRemover object
@@ -41,11 +41,19 @@ class VideoBackgroundRemoverApp:
         self.video_frame = ctk.CTkFrame(root)
         self.video_frame.pack(pady=10, fill="both", expand=True)
         
-        self.original_video_label = ctk.CTkLabel(self.video_frame, text="Original Video")
+        self.original_video_label = ctk.CTkLabel(self.video_frame, text="")
         self.original_video_label.grid(row=0, column=0, padx=10, pady=10)
 
-        self.processed_video_label = ctk.CTkLabel(self.video_frame, text="Processed Video")
+        self.processed_video_label = ctk.CTkLabel(self.video_frame, text="")
         self.processed_video_label.grid(row=0, column=1, padx=10, pady=10)
+        
+        
+        self.original_label = ctk.CTkLabel(self.video_frame, text="Original Video")
+        self.original_label.grid(row=1, column=0, padx=10, pady=10)
+
+        self.processed_label = ctk.CTkLabel(self.video_frame, text="Processed Video")
+        self.processed_label.grid(row=1, column=1, padx=10, pady=10)
+
 
         self.video_path = ""
         self.output_path = "./output/results.mp4"
@@ -139,10 +147,10 @@ class VideoBackgroundRemoverApp:
         delay = int(1000 / fps)  # Convert fps to milliseconds
         
         
-        # audio = AudioSegment.from_file(video_path)
+        audio = AudioSegment.from_file(video_path)
         
-        # # Play audio in a separate thread
-        # threading.Thread(target=play, args=(audio,)).start()
+        # Play audio in a separate thread
+        threading.Thread(target=play, args=(audio,)).start()
        
         for frame in video.iter_frames(fps=fps, dtype="uint8"):
             # Resize for displaying in the UI
