@@ -4,11 +4,10 @@ from tkinter import filedialog, messagebox
 from PIL import Image, ImageTk
 import cv2
 from moviepy.editor import VideoFileClip, ImageSequenceClip
-from pydub import AudioSegment
-from pydub.playback import play
 import os
 import threading
 from src.remover import BackgroundRemover
+from ffpyplayer.player import MediaPlayer
 
 # Set appearance and color theme
 ctk.set_appearance_mode("Dark")  # Set to dark mode
@@ -17,22 +16,37 @@ ctk.set_default_color_theme("dark-blue")  # Dark blue theme, but you can customi
 class VideoBackgroundRemoverApp:
     def __init__(self, root):
         self.root = root
-        self.root.title("Backova")
-        self.root.geometry("1240x600")
+        self.root.title("Video Background Remover")
+        self.root.geometry("1240x650")
 
         # Initialize the BackgroundRemover object
         self.obj = BackgroundRemover()
 
         # UI Elements
-        self.label = ctk.CTkLabel(root, text="Video Background Remover", font=("Helvetica", 18))
-        self.label.pack(pady=10)
+        self.label = ctk.CTkLabel(root, text="BACKOVA", font=("Helvetica", 18))
+        self.label.pack(pady=(10, 0))
+        
+        self.tiny_label = ctk.CTkLabel(root, text="Video Background Remover", font=("Helvetica", 14))
+        self.tiny_label.pack(pady=0)
 
-        self.upload_button = ctk.CTkButton(root, text="Upload Video", command=self.upload_video)
-        self.upload_button.pack(pady=5)
+        # Button frame for horizontal layout
+        self.button_frame = ctk.CTkFrame(root)
+        self.button_frame.pack(pady=10)
 
-        self.process_button = ctk.CTkButton(root, text="Process Video", command=self.process_video)
-        self.process_button.pack(pady=5)
+        # Arrange buttons horizontally within the button frame
+        self.upload_button = ctk.CTkButton(self.button_frame, text="Upload Video", command=self.upload_video)
+        self.upload_button.grid(row=0, column=0, padx=5)
+
+        self.output_button = ctk.CTkButton(self.button_frame, text="Select Output Path", command=self.select_output_path)
+        self.output_button.grid(row=0, column=1, padx=5)
+
+        self.process_button = ctk.CTkButton(self.button_frame, text="Process Video", command=self.process_video)
+        self.process_button.grid(row=0, column=2, padx=5)
         self.process_button.configure(state="disabled")
+
+        self.play_processed_button = ctk.CTkButton(self.button_frame, text="Play Processed Video", command=self.play_processed_video)
+        self.play_processed_button.grid(row=0, column=3, padx=5)
+        self.play_processed_button.configure(state="disabled")
 
         self.status_label = ctk.CTkLabel(root, text="", font=("Helvetica", 12))
         self.status_label.pack(pady=5)
@@ -47,16 +61,14 @@ class VideoBackgroundRemoverApp:
         self.processed_video_label = ctk.CTkLabel(self.video_frame, text="")
         self.processed_video_label.grid(row=0, column=1, padx=10, pady=10)
         
-        
         self.original_label = ctk.CTkLabel(self.video_frame, text="Original Video")
         self.original_label.grid(row=1, column=0, padx=10, pady=10)
 
         self.processed_label = ctk.CTkLabel(self.video_frame, text="Processed Video")
         self.processed_label.grid(row=1, column=1, padx=10, pady=10)
 
-
         self.video_path = ""
-        self.output_path = "./output/results.mp4"
+        self.output_path = "./output/results.mp4"  # Default output path
         self.background_path = os.path.join(os.getcwd(), "background/2.png")
         self.images = []
 
@@ -68,9 +80,20 @@ class VideoBackgroundRemoverApp:
         else:
             messagebox.showerror("Error", "Failed to upload video")
 
+    def select_output_path(self):
+        self.output_path = filedialog.asksaveasfilename(defaultextension=".mp4", filetypes=[("MP4 Files", "*.mp4"), ("All Files", "*.*")])
+        if self.output_path:
+            self.status_label.configure(text=f"Output path selected: {self.output_path}")
+        else:
+            self.status_label.configure(text="No output path selected, using default.")
+
     def process_video(self):
         if not self.video_path:
             messagebox.showwarning("Warning", "Please upload a video first.")
+            return
+
+        if not self.output_path:
+            messagebox.showwarning("Warning", "Please select an output path.")
             return
 
         self.status_label.configure(text="Processing video... Please wait.")
@@ -120,8 +143,8 @@ class VideoBackgroundRemoverApp:
         self.save_processed_video(self.images, fps)
         self.status_label.configure(text="Video processed and saved successfully!")
 
-        # Play both videos in UI
-        self.play_videos()
+        # Enable the "Play Processed Video" button after processing
+        self.play_processed_button.configure(state="normal")
 
     def save_processed_video(self, frames, fps):
         clip = ImageSequenceClip(frames, fps=fps)
@@ -131,39 +154,41 @@ class VideoBackgroundRemoverApp:
         final_clip = clip.set_audio(audio)
         final_clip.write_videofile(self.output_path, codec="libx264", audio_codec="aac")
 
-        messagebox.showinfo("Success", f"Video saved to {self.output_path}")
+        # messagebox.showinfo("Success", f"Video saved to {self.output_path}")
 
-    def play_videos(self):
-        self.status_label.configure(text="Playing videos...")
-
-        # Use threading to play audio and video asynchronously
+    def play_processed_video(self):
+        # Play the processed video in the UI
         threading.Thread(target=self._play_video_with_audio, args=(self.video_path, self.original_video_label)).start()
         threading.Thread(target=self._play_video_with_audio, args=(self.output_path, self.processed_video_label)).start()
 
-    def _play_video_with_audio(self, video_path, label):
-        video = VideoFileClip(video_path)
-        # Calculate frame delay based on the video's frame rate
-        fps = video.fps
-        delay = int(1000 / fps)  # Convert fps to milliseconds
-        
-        
-        audio = AudioSegment.from_file(video_path)
-        
-        # Play audio in a separate thread
-        threading.Thread(target=play, args=(audio,)).start()
-       
-        for frame in video.iter_frames(fps=fps, dtype="uint8"):
-            # Resize for displaying in the UI
-            screen_width = 600
-            scaling_factor = screen_width / frame.shape[1]
-            new_width = screen_width
-            new_height = int(frame.shape[0] * scaling_factor)
-            resized_frame = cv2.resize(frame, (new_width, new_height))
-            img = ImageTk.PhotoImage(image=Image.fromarray(resized_frame))
-            label.configure(image=img)
-            label.image = img
-            self.root.update()
-            self.root.after(12)  # Adjust the delay to match the frame rate
+    def _play_video_with_audio(self, video_path, video_label):
+        def get_audio_frame(player, dt):
+            frame, val = player.get_frame(force_refresh=False, show=False)
+            return frame, val
+
+        video = cv2.VideoCapture(video_path)
+        player = MediaPlayer(video_path, callback=get_audio_frame)
+
+        while True:
+            grabbed, frame = video.read()
+            if not grabbed:
+                break
+
+            # Resize and display frame
+            resized_frame = cv2.resize(frame, (video_label.winfo_width(), video_label.winfo_height()))
+            img = ImageTk.PhotoImage(image=Image.fromarray(cv2.cvtColor(resized_frame, cv2.COLOR_BGR2RGB)))
+            video_label.configure(image=img)
+            video_label.image = img
+            
+            # Handle audio and frame syncing
+            audio_frame, val = player.get_frame()
+            if val == 'eof':
+                break
+            if cv2.waitKey(24) & 0xFF == ord("q"):
+                break
+
+        video.release()
+        player.close_player()
 
 if __name__ == "__main__":
     root = ctk.CTk()
